@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
 // AWS imports
-import { Amplify } from "aws-amplify";
+import { Amplify } from "@aws-amplify/core";
+import { generateClient } from "@aws-amplify/api";
+import { GraphQLResult } from "@aws-amplify/api-graphql";
 import awsExports from "../src/aws-exports";
 import {
   BackgroundImage1,
@@ -22,6 +24,7 @@ import {
 } from "./components/QuoteGenerator/QuoteGeneratorElements";
 import Clouds1 from "./assets/cloud-and-thunder.png";
 import Clouds2 from "./assets/cloudy-weather.png";
+import { quoteQueryName } from "@/src/graphql/queries";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -31,14 +34,67 @@ export const metadata: Metadata = {
     "Quote Generator - NextJS, GraphQL, Node, Serverless, AWS, Typescript",
 };
 
-Amplify.configure({ ...awsExports, ssr: true });
+Amplify.configure({ ...awsExports });
+
+interface UpdateQuoteInfoData {
+  id: string;
+  queryName: string;
+  quotesGenerated: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+function isGraphQLResultForquoteQueryName(
+  response: any
+): response is GraphQLResult<{
+  quoteQueryName: {
+    items: [UpdateQuoteInfoData];
+  };
+}> {
+  return (
+    response.data &&
+    response.data.quoteQueryName &&
+    response.data.quoteQueryName.items
+  );
+}
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [numberOfQuotes, setNumberOfQuotes] = useState(0);
+  const client = generateClient();
+  const [numberOfQuotes, setNumberOfQuotes] = useState<Number | null>(0);
+
+  const updateQuoteInfo = async () => {
+    try {
+      const response = await client.graphql<UpdateQuoteInfoData>({
+        query: quoteQueryName,
+        variables: {
+          queryName: "LIVE",
+        },
+      });
+
+      if (!isGraphQLResultForquoteQueryName(response)) {
+        throw new Error("Unexpected response from graphQL");
+      }
+
+      if (!response.data) {
+        throw new Error("Response data is undefined");
+      }
+
+      const receivedNumberOfQuotes =
+        response.data.quoteQueryName.items[0].quotesGenerated;
+      setNumberOfQuotes(receivedNumberOfQuotes);
+    } catch (error) {
+      console.log("error getting quote data", error);
+    }
+  };
+
+  useEffect(() => {
+    updateQuoteInfo();
+  }, []);
+
   return (
     <html lang="en">
       <GradientBackgroundCon>
@@ -62,9 +118,7 @@ export default function RootLayout({
             .
           </QuoteGeneratorSubTitle>
           <GenerateQuoteButton>
-            <GenerateQuoteButtonText onClick={null}>
-              Make a Quote
-            </GenerateQuoteButtonText>
+            <GenerateQuoteButtonText>Make a Quote</GenerateQuoteButtonText>
           </GenerateQuoteButton>
         </QuoteGeneratorInnerCon>
       </QuoteGeneratorCon>
