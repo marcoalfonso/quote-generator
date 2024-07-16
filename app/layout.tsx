@@ -24,7 +24,8 @@ import {
 } from "./components/QuoteGenerator/QuoteGeneratorElements";
 import Clouds1 from "./assets/cloud-and-thunder.png";
 import Clouds2 from "./assets/cloudy-weather.png";
-import { quoteQueryName } from "@/src/graphql/queries";
+import { quoteQueryName, generateAQuote } from "@/src/graphql/queries";
+import QuoteGeneratorModal from "./components/QuoteGenerator";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -35,6 +36,14 @@ export const metadata: Metadata = {
 };
 
 Amplify.configure({ ...awsExports });
+
+interface GenerateAQuoteData {
+  generateAQuote: {
+    statusCode: number;
+    headers: { [key: string]: string };
+    body: string;
+  };
+}
 
 interface UpdateQuoteInfoData {
   id: string;
@@ -65,6 +74,9 @@ export default function RootLayout({
 }>) {
   const client = generateClient();
   const [numberOfQuotes, setNumberOfQuotes] = useState<Number | null>(0);
+  const [openGenerator, setOpenGenerator] = useState(false);
+  const [processingQuote, setProcessingQuote] = useState(false);
+  const [quoteReceived, setQuoteReceived] = useState<String | null>(null);
 
   const updateQuoteInfo = async () => {
     try {
@@ -95,13 +107,64 @@ export default function RootLayout({
     updateQuoteInfo();
   }, []);
 
+  const handleCloseGenerator = () => {
+    setOpenGenerator(false);
+    setProcessingQuote(false);
+    setQuoteReceived(null);
+  };
+
+  const handleOpenGenerator = async (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    setOpenGenerator(true);
+    setProcessingQuote(true);
+    try {
+      // Run Lambda Function
+      const runFunction = "runFunction";
+      const runFunctionStringified = JSON.stringify(runFunction);
+      const response = await client.graphql<GenerateAQuoteData>({
+        query: generateAQuote,
+        variables: {
+          input: runFunctionStringified,
+        },
+      });
+      const responseStringified = JSON.stringify(response);
+      const responseReStringified = JSON.stringify(responseStringified);
+      const bodyIndex = responseReStringified.indexOf("body=") + 5;
+      const bodyAndBase64 = responseReStringified.substring(bodyIndex);
+      const bodyArray = bodyAndBase64.split(",");
+      const body = bodyArray[0];
+      console.log(body);
+      setQuoteReceived(body);
+
+      // End state:
+      setProcessingQuote(false);
+
+      // Fetch if any new quotes were generated from counter
+      updateQuoteInfo();
+
+      // setProcessingQuote(false);
+      // setTimeout(() => {
+      //   setProcessingQuote(false);
+      // }, 3000);
+    } catch (error) {
+      console.log("error generating quote:", error);
+      setProcessingQuote(false);
+    }
+  };
+
   return (
     <html lang="en">
       <GradientBackgroundCon>
         <body className={inter.className}>{children}</body>
       </GradientBackgroundCon>
-      {/* <QuoteGeneratorModal
-      /> */}
+      <QuoteGeneratorModal
+        open={openGenerator}
+        close={handleCloseGenerator}
+        processingQuote={processingQuote}
+        setProcessingQuote={setProcessingQuote}
+        quoteReceived={quoteReceived}
+        setQuoteReceived={setQuoteReceived}
+      />
       <QuoteGeneratorCon>
         <QuoteGeneratorInnerCon>
           <QuoteGeneratorTitle>Daily Inspiration Generator</QuoteGeneratorTitle>
@@ -117,7 +180,7 @@ export default function RootLayout({
             </FooterLink>
             .
           </QuoteGeneratorSubTitle>
-          <GenerateQuoteButton>
+          <GenerateQuoteButton onClick={handleOpenGenerator}>
             <GenerateQuoteButtonText>Make a Quote</GenerateQuoteButtonText>
           </GenerateQuoteButton>
         </QuoteGeneratorInnerCon>
