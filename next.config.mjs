@@ -11,14 +11,14 @@ const nextConfig = {
       ssr: true,
       // Enabled by default.
       fileName: true,
-      // Empty by default.
-      topLevelImportPaths: [],
+      // Provide at least one path.
+      topLevelImportPaths: ["styled-components"],
       // Defaults to ["index"].
       meaninglessFileNames: ["index"],
       // Enabled by default.
       cssProp: true,
-      // Empty by default.
-      namespace: "",
+      // Provide a non-empty string.
+      namespace: "myApp",
       // Not supported yet.
       minify: false,
       // Not supported yet.

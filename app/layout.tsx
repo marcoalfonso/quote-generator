@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+// import { Inter } from "next/font/google";
 import "./globals.css";
 
 // AWS imports
@@ -27,7 +27,7 @@ import Clouds2 from "./assets/cloudy-weather.png";
 import { quoteQueryName, generateAQuote } from "@/src/graphql/queries";
 import QuoteGeneratorModal from "./components/QuoteGenerator";
 
-const inter = Inter({ subsets: ["latin"] });
+// const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Quote Generator",
